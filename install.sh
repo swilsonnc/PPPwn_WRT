@@ -32,8 +32,8 @@ done
 echo "Network is available. Continuing installation..."
 
 
-opkg update || { echo "opkg update failed"; exit 1; }
-opkg install coreutils-timeout
+apt update || { echo "apt update failed"; exit 1; }
+apt install coreutils-timeout
 
 # Remove previous install
 rm -r PPPwn_WRT-main
