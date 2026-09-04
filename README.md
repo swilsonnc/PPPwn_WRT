@@ -51,7 +51,7 @@ Pass: yourpassword
 
 Download and run the install script
 ```sh
-wget https://github.com/MODDEDWARFARE/PPPwn_WRT/raw/main/install.sh
+wget https://github.com/swilsonnc/PPPwn_WRT/raw/main/install.sh
 chmod +x install.sh && . ./install.sh
 ```
 
