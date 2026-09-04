@@ -47,8 +47,8 @@ if [ "$ghd" = "true" ]; then
     # Check if nmap is installed
     CHECK=$(which nmap)
     if [ "$CHECK" = "" ]; then
-        opkg update
-        opkg install nmap
+        apk update
+        apk add nmap
     fi
 
     # wait for linkup
