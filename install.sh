@@ -33,7 +33,7 @@ echo "Network is available. Continuing installation..."
 
 
 apk update || { echo "apk update failed"; exit 1; }
-apk install coreutils-timeout
+apk add coreutils-timeout
 
 # Remove previous install
 rm -r PPPwn_WRT-main
@@ -169,7 +169,7 @@ case "$machine_arch" in
         chmod +x pppwn_x86_64
         ;;
     *mips*)
-        apk install lscpu
+        apk add lscpu
         BYTE_ORDER=$(lscpu | grep "Byte Order" | awk '{print $3, $4}')
         if [ "$BYTE_ORDER" = "Big Endian" ]; then
             wget https://github.com/MODDEDWARFARE/PPPwn_WRT/raw/main/pppwn_mips
@@ -511,7 +511,7 @@ done
 # Internet Passthrough
 echo
 
-        apk install rp-pppoe-server rp-pppoe-common
+        apk add rp-pppoe-server rp-pppoe-common
         if [ $? -ne 0 ]; then
             echo "Failed to install rp-pppoe-server"
             exit 1
@@ -745,7 +745,7 @@ while true; do
     read -p "$(printf '\r\n\r\n\033[36mEnable GoldHEN detection for rest mode support? (Y/N):\033[0m ')" ghcheck
     case "$ghcheck" in
         [Yy])
-            apk install nmap
+            apk add nmap
             ghd="true"
             printf '\033[32mGoldhen detection enabled\033[0m'
             break;;
@@ -829,7 +829,7 @@ while true; do
             fi
 
             #required pkgs
-            apk install nginx php8-fastcgi php8-fpm
+            apk add nginx php8-fastcgi php8-fpm
 
             #configure nginx
             echo 'user root;
@@ -901,7 +901,7 @@ http {
                     if [ $? -ne 0 ]; then
                         echo "Failed to download PS4-Payloads"
                     fi
-                    apk install unzip
+                    apk add unzip
                     unzip -o PS4-Payloads.zip
                     rm -f PS4-Payloads.zip
                     break;;
@@ -934,7 +934,7 @@ while true; do
     read -p "$(printf '\r\n\r\n\033[36mDo you also want to run PPPwn from the LuCi web interface? (Y/N):\033[0m ')" app_commands
     case "$app_commands" in
         [Yy])
-            apk install luci-app-commands
+            apk add luci-app-commands
             if [ $? -ne 0 ]; then
                 echo "Failed to install luci-app-commands"
                 #exit 1
