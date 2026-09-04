@@ -32,8 +32,8 @@ done
 echo "Network is available. Continuing installation..."
 
 
-apt update || { echo "apt update failed"; exit 1; }
-apt install coreutils-timeout
+apk update || { echo "apk update failed"; exit 1; }
+apk install coreutils-timeout
 
 # Remove previous install
 rm -r PPPwn_WRT-main
