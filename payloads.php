@@ -10,7 +10,7 @@ foreach ($data as $x) {
         break;
     }
 }
-if (empty($ps4ip)){ $ps4ip = "192.168.3.11";}
+if (empty($ps4ip)){ $ps4ip = "192.168.8.11";}
 
 if (isset($_POST['payload'])){
 $fso = fsockopen("tcp://" . $ps4ip, 9090, $errn, $errs, 30);
