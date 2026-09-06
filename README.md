@@ -1,6 +1,6 @@
 # PPPwn on OpenWRT
 
-A method of running PPPwn on devices running OpenWRT.  
+A method of running PPPwn on devices running OpenWRT v25.12 and newer.  
 Based on the Pi-Pwn project from [stooged](https://github.com/stooged/PI-Pwn).
 
 ---
@@ -23,8 +23,9 @@ Based on the Pi-Pwn project from [stooged](https://github.com/stooged/PI-Pwn).
 
 Check if your device is supported [here](https://openwrt.org/toh/start).  
 
-This project supports OpenWRT versions as low as 21.02.  
+This project supports OpenWRT versions as low as 25.12.  
 Older versions may fail to download files using `wget`, but you can work around this by manually downloading files from the repo and uploading them to the device via `scp` or `sftp`.
+Older versions also used opkg as a package manager instead of the newer apk package manager.
 
 ---
 
@@ -63,7 +64,7 @@ You will be asked a series of configuration questions:
   - GoldHEN detection  
   - Web panel and web panel payloads  
 
-  👉 Instead, you can run the install script from a USB drive. This will install most files to the USB and free up internal storage.
+  👉 Instead, you can run the install script from a USB drive. This will install most files to the USB and free up internal storage. You will need to set it u as extroot in order to take advantage of this feature.
 
 - **LAN Interface Selection:**  
   Choose your LAN interface (typically `br-lan`).
