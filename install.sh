@@ -86,7 +86,7 @@ echo '#!/bin/sh /etc/rc.common
 
 START=99  # Start late in the boot process
 
-USE_PROCD=1 
+USE_PROCD=1
 
 start_service() {
     export NODE_ENV=production
@@ -104,7 +104,7 @@ stop_service() {
     # Check if there are any matching processes
     if [ -n "$PIDS" ]; then
        #echo "Terminating the following process IDs for run.sh: $PIDS"
-    
+
     # Terminate each process
     for PID in $PIDS; do
         kill "$PID"
@@ -518,7 +518,7 @@ echo
         fi
 
         while true; do
-            read -p "$(printf '\r\n\r\n\033[36mDo you want to change the default subnet?\r\nif you select no then these defaults will be used\r\n\r\nGateway: \033[33m192.168.3.1\r\n\033[36mPS4 IP: \033[33m192.168.3.11\r\n\033[36mGuest IP: \033[33m192.168.3.12\033[33m\r\n\r\n\033[36m(Y|N)?: \033[0m')" pppoecred
+            read -p "$(printf '\r\n\r\n\033[36mDo you want to change the default subnet?\r\nif you select no then these defaults will be used\r\n\r\nGateway: \033[33m192.168.8.1\r\n\033[36mPS4 IP: \033[33m192.168.8.11\r\n\033[36mGuest IP: \033[33m192.168.8.12\033[33m\r\n\r\n\033[36m(Y|N)?: \033[0m')" pppoecred
             case "$pppoecred" in
             [Yy])
                 #Gateway
@@ -569,10 +569,10 @@ echo
                 done
             break;;
             [Nn])                
-                gateway="192.168.3.1"
-                remoteip="192.168.3.2"
-                ps4ip="192.168.3.11"
-                guestip="192.168.3.12"
+                gateway="192.168.8.1"
+                remoteip="192.168.8.2"
+                ps4ip="192.168.8.11"
+                guestip="192.168.8.12"
                 break;;
             *)
             break;;
@@ -605,7 +605,7 @@ echo 'config pppoe_server
 	option timeout '60'
 	option mss '1468'
 	option sync '0'
-	option interface 'pppwn'
+	option interface 'lan'
 
 config pppoe_relay
 	list server_interface 'eth1'
@@ -668,8 +668,30 @@ config pppoe_relay
 while true; do
     read -p "$(printf '\r\n\r\n\033[36mWould you like the PS4 to connect to the internet after loading PPPwn? (Y/N): \033[0m')" passthrough
     case "$passthrough" in
-        [Yy])            
+        [Yy])
+            CUT_IP=$(echo "$gateway" | cut -d '.' -f1-3)            
             pppoeb=true
+            echo "config rule
+        option name 'Allow-DHCP-for-PS4'
+        option src 'lan'
+        option proto 'udp'
+        option dest_port '67-68'
+        option target 'ACCEPT'
+        "
+        
+            echo "config redirect
+        option name 'PlayStationManualRedirect'
+        option src 'lan'
+        option proto 'tcp'
+        option src_dip '192.168.8.1'
+        option src_dport '80'
+        option dest 'lan'
+        option dest_ip '192.168.8.1'
+        option dest_port '8080'
+        option target 'DNAT'
+        option reflection '1'
+        
+        " >> /etc/config/firewall
             printf '\033[32mInternet access permitted\033[0m'
             break;;
         [Nn])
@@ -683,7 +705,7 @@ while true; do
         option dest 'wan'
         option target 'REJECT'
 
-" >> /etc/config/firewall
+        " >> /etc/config/firewall
             printf '\033[32mInternet access will be blocked by the firewall\033[0m'
             break;;
         *)
