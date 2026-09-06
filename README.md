@@ -1,4 +1,4 @@
-# PPPwn on OpenWRT
+# PPPwn on OpenWRT v25.12 and newer
 
 A method of running PPPwn on devices running OpenWRT v25.12 and newer.  
 Based on the Pi-Pwn project from [stooged](https://github.com/stooged/PI-Pwn).
