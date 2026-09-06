@@ -12,187 +12,95 @@ foreach ($data as $x) {
    elseif (str_starts_with($x, 'ps4ip')) {
     $ps4ip = (explode("=", $x)[1]);
    }
+   // FIXED: Added [1] to grab the value string before stripping quotes and trimming
+   elseif (str_starts_with($x, 'dtlan')) {
+    $clean_val = trim(str_replace('"', '', explode("=", $x)[1]));
+    $iface = $clean_val;
+    $dtlan = $clean_val;
+    $interface = $clean_val; 
+   }
 }
 }else{
    $path = "/root/PPPwn_WRT-main";
-   $ps4ip = "192.168.3.11";
+   $ps4ip = "192.168.8.11";
+   $dtlan = "br-lan"; 
+   $interface = "br-lan";
 }
 
 if (isset($_POST['save'])){
 
-    if ($_POST['pppwnbtn'] != "none"){
+    // 1. READ EXISTING CONFIG VALUES FIRST TO ESTABLISH A BASELINE FOR COMPARISON
+    $old_startup   = "true";
+    $old_pppwnbtn  = "none";
 
+    if (file_exists('settings.cfg')) {
+        $baseline_data = file('settings.cfg', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        foreach ($baseline_data as $line) {
+            $clean_line = str_replace(['\\', '"'], '', $line);
+            $parts = explode("=", $clean_line);
+            if (count($parts) < 2) continue;
+            
+            $key = trim($parts[0]);
+            $val = trim($parts[1]);
+
+            if ($key === 'startup') { $old_startup = $val; }
+            elseif ($key === 'btn')     { $old_pppwnbtn = $val; }
+        }
+    }
+
+    // 2. TRACK LOCAL CHANGES ONLY
+    $post_startup   = isset($_POST["startup"]) ? "true" : "false";
+    $post_pppwnbtn  = $_POST['pppwnbtn'] ?? 'none';
+
+    $startup_changed = ($old_startup !== $post_startup);
+    $btn_changed     = ($old_pppwnbtn !== $post_pppwnbtn);
+
+    // 3. CONDITIONAL BUTTON SETUP (Only touches local /etc/rc.button folder)
+    if ($btn_changed && $post_pppwnbtn != "none") {
         exec('cp ' . $path . '/rc.button /etc/rc.button');
-        sleep(1);
         exec('echo "#!/bin/sh
 
-        if [ \"\$ACTION\" = \"released\" ] && [ \"\$BUTTON\" = \""' . escapeshellarg($_POST['pppwnbtn']) . '\"" ]; then
+        if [ \"\$ACTION\" = \"released\" ] && [ \"\$BUTTON\" = \""' . escapeshellarg($post_pppwnbtn) . '\"" ]; then
             chmod +x ' . $path . '/run.sh && ' . $path . '/run.sh
         fi
 
-        return 0" > /etc/rc.button/' . escapeshellarg($_POST['pppwnbtn']));       
+        return 0" > /etc/rc.button/' . escapeshellarg($post_pppwnbtn));       
     }
 
-    $octets = explode('.', $ps4ip);
-    $cut_ip = "{$octets[0]}.{$octets[1]}.{$octets[2]}";
-
-    $firewall_rule = "
-config rule
-        option name 'WANBLOCKER'
-        list proto 'all'
-        option src 'lan'
-        list src_ip '${cut_ip}.0/24'
-        option dest 'wan'
-        option target 'REJECT'
-
-
-";
-
-    if (isset($_POST["pppoeconn"])){
-        
-        $firewall_file = '/etc/config/firewall';
-        if (!file_exists($firewall_file)) {
-            die("Error: Firewall config file does not exist.");
-        }
-        $file_content = file_get_contents($firewall_file);
-        $file_content = str_replace($firewall_rule, '', $file_content);
-        file_put_contents($firewall_file, $file_content);
-    }
-    else{
-        
-        file_put_contents('/etc/config/firewall', $firewall_rule, FILE_APPEND); 
-    }
-
-    $configFile = '/etc/config/pppoe';
-    $gateway = null;
-
-    $configLines = file($configFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-
-    foreach ($configLines as $line) {
-        if (preg_match('/^\s*option\s+localip\s+([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)/', $line, $matches)) {
-            $gateway = $matches[1];
-            break;
-        }
-    }
-
-    // Path to the DHCP config file
-    $dhcpConfig = '/etc/config/dhcp';
-    $backupConfig = $dhcpConfig . '.bak';
-
-    $newEntries = <<<EOL
-                list address '/playstation.com/127.0.0.1'
-                list address '/status.playstation.com/127.0.0.1'
-                list address '/www.playstation.com/127.0.0.1'
-                list server '/playstation.com/127.0.0.1'
-                list server '/status.playstation.com/127.0.0.1'
-                list server '/www.playstation.com/127.0.0.1'
-                list address '/playstation.net/127.0.0.1'
-                list address '/manuals.playstation.net/127.0.0.1'
-                list address '/get.net.playstation.net/127.0.0.1'
-                list address '/post.net.playstation.net/127.0.0.1'
-                list address '/ena.net.playstation.net/127.0.0.1'
-                list address '/update.net.playstation.net/127.0.0.1'
-                list address '/oss.dl.playstation.net/127.0.0.1'
-                list server '/playstation.net/127.0.0.1'
-                list server '/manuals.playstation.net/127.0.0.1'
-                list server '/get.net.playstation.net/127.0.0.1'
-                list server '/post.net.playstation.net/127.0.0.1'
-                list server '/ena.net.playstation.net/127.0.0.1'
-                list server '/update.net.playstation.net/127.0.0.1'
-                list server '/oss.dl.playstation.net/127.0.0.1'
-                list address '/djp01.ps4.update.playstation.net/127.0.0.1'
-                list address '/dus01.ps4.update.playstation.net/127.0.0.1'
-                list address '/deu01.ps4.update.playstation.net/127.0.0.1'
-                list address '/fjp01.ps4.update.playstation.net/127.0.0.1'
-                list address '/fus01.ps4.update.playstation.net/127.0.0.1'
-                list address '/feu01.ps4.update.playstation.net/127.0.0.1'
-                list address '/hjp01.ps4.update.playstation.net/127.0.0.1'
-                list address '/hus01.ps4.update.playstation.net/127.0.0.1'
-                list address '/heu01.ps4.update.playstation.net/127.0.0.1'
-                list server '/djp01.ps4.update.playstation.net/127.0.0.1'
-                list server '/dus01.ps4.update.playstation.net/127.0.0.1'
-                list server '/deu01.ps4.update.playstation.net/127.0.0.1'
-                list server '/fjp01.ps4.update.playstation.net/127.0.0.1'
-                list server '/fus01.ps4.update.playstation.net/127.0.0.1'
-                list server '/feu01.ps4.update.playstation.net/127.0.0.1'
-                list server '/hjp01.ps4.update.playstation.net/127.0.0.1'
-                list server '/hus01.ps4.update.playstation.net/127.0.0.1'
-                list server '/heu01.ps4.update.playstation.net/127.0.0.1'
-                list address '/b0.ww.np.dl.playstation.net/127.0.0.1'
-                list address '/gs.ww.np.dl.playstation.net/127.0.0.1'
-                list address '/gs2.ww.prod.dl.playstation.net/127.0.0.1'
-                list address '/gst.prod.dl.playstation.net/127.0.0.1'
-                list server '/b0.ww.np.dl.playstation.net/127.0.0.1'
-                list server '/gs.ww.np.dl.playstation.net/127.0.0.1'
-                list server '/gs2.ww.prod.dl.playstation.net/127.0.0.1'
-                list server '/gst.prod.dl.playstation.net/127.0.0.1'
-                list address '/sonycoment.vo.llnwd.net/127.0.0.1'
-                list address '/sonygst.s.llnwi.net/127.0.0.1'
-                list server '/sonycoment.vo.llnwd.net/127.0.0.1'
-                list server '/sonygst.s.llnwi.net/127.0.0.1'
-        EOL;
-
-    $shouldAdd = isset($_POST["ddns"]);
-
-    if (!copy($dhcpConfig, $backupConfig)) {
-        die("Failed to create a backup of the configuration file.\n");
-    }
-
-    $config = file_get_contents($dhcpConfig);
-    if ($config === false) {
-        die("Failed to read the configuration file.\n");
-    }
-
-    if ($shouldAdd != true) {
-        if (strpos($config, 'config dnsmasq') === false) {
-            $config .= "\nconfig dnsmasq\n$newEntries\n";
+    // 4. CONDITIONAL STARTUP SCRIPT (Only touches local /etc/rc.local file)
+    if ($startup_changed) {
+        if (isset($_POST["startup"])) {
+            $pwnpath = str_replace('"', "", $path);
+            exec("echo 'sleep 20\nchmod +x $pwnpath/run.sh && $pwnpath/run.sh' > /etc/rc.local");
         } else {
-            $config = preg_replace('/(config dnsmasq)/', "$1\n$newEntries", $config, 1);
+            exec("echo '' > /etc/rc.local");
         }
-    } else {
-        $escapedEntries = preg_quote($newEntries, '/');
-        $escapedEntries = str_replace('\n', "[ \t]*\\n", $escapedEntries); // Allow flexible spacing
-        $config = preg_replace("/$escapedEntries/s", '', $config);
     }
 
-    if (file_put_contents($dhcpConfig, $config) === false) {
-        die("Failed to update the configuration file.\n");
-    }
+    // 5. ASSEMBLE AND GENERATE LOCAL SETTINGS FILE
+    $config = "#!/bin/sh\n";
+    $config .= "iface=\"" . str_replace(" ", "", trim($_POST["iface"])) . "\"\n";
+    $config .= "dtlan=\"" . str_replace(" ", "", trim($_POST["interface"])) . "\"\n";
+    $config .= "fw=\"" . $_POST["firmware"] . "\"\n";
+    $config .= "shutdown=" . (isset($_POST["shutdownpi"]) ? "true" : "false") . "\n";
+    $config .= "pppoe=" . (isset($_POST["pppoeconn"]) ? "true" : "false") . "\n";
+    $config .= "dtl=" . (isset($_POST["dtlink"]) ? "true" : "false") . "\n";
+    $config .= "PPDBG=" . (isset($_POST["ppdbg"]) ? "true" : "false") . "\n";
+    $config .= "timeout=\"" . (str_replace(" ", "", substr(trim($_POST["timeout"]), 0, -1)) * 60) . "\"\n";
+    $config .= "ghd=" . (isset($_POST["restmode"]) ? "true" : "false") . "\n";
+    $config .= "PYPWN=" . (isset($_POST["upypwn"]) ? "true" : "false") . "\n";
+    $config .= "led=\"" . $_POST["ledact"] . "\"\n";
+    $config .= "DDNS=" . (isset($_POST["ddns"]) ? "true" : "false") . "\n";
+    $config .= "oipv=" . (isset($_POST["oipv"]) ? "true" : "false") . "\n";
+    $config .= "path=\"" . $_POST["path"] . "\"\n";
+    $config .= "btn=" . $_POST["pppwnbtn"] . "\n";
+    $config .= "ps4ip=" . $_POST["ps4ip"] . "\n";
+    $config .= "startup=" . (isset($_POST["startup"]) ? "true" : "false") . "\n";
 
-    exec('/etc/init.d/dnsmasq restart', $output, $returnVar);
-
-    if (isset($_POST["startup"])){
-        
-        $pwnpath = str_replace('"', "", $path);
-        exec("echo 'sleep 20\nchmod +x $pwnpath/run.sh && $pwnpath/run.sh' > /etc/rc.local");
-    }
-    else{
-
-        exec("echo '' > /etc/rc.local");
-    }
-
-	$config = "#!/bin/sh\n";
-	$config .= "dtlan=\\\"".str_replace(" ", "", trim($_POST["interface"]))."\\\"\n";
-	$config .= "fw=\\\"".$_POST["firmware"]."\\\"\n";
-	$config .= "shutdown=".(isset($_POST["shutdownpi"]) ? "true" : "false")."\n";
-	$config .= "pppoe=".(isset($_POST["pppoeconn"]) ? "true" : "false")."\n";
-	$config .= "dtl=".(isset($_POST["dtlink"]) ? "true" : "false")."\n";
-	$config .= "PPDBG=".(isset($_POST["ppdbg"]) ? "true" : "false")."\n";
-    $config .= "timeout=\\\"".str_replace(" ", "", substr(trim($_POST["timeout"]), 0, -1)*60)."\\\"\n";
-	$config .= "ghd=".(isset($_POST["restmode"]) ? "true" : "false")."\n";
-	$config .= "PYPWN=".(isset($_POST["upypwn"]) ? "true" : "false")."\n";
-	$config .= "led=\\\"".$_POST["ledact"]."\\\"\n";
-	$config .= "DDNS=".(isset($_POST["ddns"]) ? "true" : "false")."\n";
-	$config .= "oipv=".(isset($_POST["oipv"]) ? "true" : "false")."\n";
-    $config .= "path=\\\"".$_POST["path"]."\\\"\n";
-    $config .= "btn=".$_POST["pppwnbtn"]."\n";
-    $config .= "ps4ip=".$_POST["ps4ip"]."\n";
-    $config .= "startup=".(isset($_POST["startup"]) ? "true" : "false")."\n";
-	exec('echo "'.$config.'" | tee settings.cfg');
-	sleep(1);
-
-    exec('/etc/init.d/firewall restart');
+    // Fast native PHP write
+    file_put_contents('settings.cfg', $config);
 }
+
  
 if (isset($_POST['restart'])){
 
@@ -232,57 +140,69 @@ $cmd = 'cat settings.cfg';
 exec($cmd ." 2>&1", $data, $ret);
 if ($ret == 0){
 foreach ($data as $x) {
-   if (str_starts_with($x, 'dtlan')) {
-      $interface = (explode("=", str_replace("\"", "", $x))[1]);
+   // Helper clean up to strip both double quotes and accidental backslashes
+   $clean_x = str_replace(['\\', '"'], '', $x);
+   $parts = explode("=", $clean_x);
+   if (count($parts) < 2) continue;
+   
+   $key = trim($parts[0]);
+   $val = trim($parts[1]);
+
+   if ($key === 'iface') {
+      $iface = $val;
    }
-   elseif (str_starts_with($x, 'fw')) {
-      $firmware = (explode("=", str_replace("\"", "", $x))[1]);
+   elseif ($key === 'dtlan') {
+      $interface = $val;
    }
-   elseif (str_starts_with($x, 'shutdown')) {
-      $shutdownpi = (explode("=", $x)[1]);
+   elseif ($key === 'fw') {
+      $firmware = $val;
    }
-   elseif (str_starts_with($x, 'pppoe')) {
-      $pppoeconn = (explode("=", $x)[1]);
+   elseif ($key === 'shutdown') {
+      $shutdownpi = $val;
    }
-   elseif (str_starts_with($x, 'dtl')) {
-      $dtlink = (explode("=", $x)[1]);
+   elseif ($key === 'pppoe') {
+      $pppoeconn = $val;
    }
-   elseif (str_starts_with($x, 'PPDBG')) {
-      $ppdbg = (explode("=", $x)[1]);
+   elseif ($key === 'dtl') {
+      $dtlink = $val;
    }
-   elseif (str_starts_with($x, 'timeout')) {
-      $timeout = (explode("=", str_replace("\"", "", $x))[1]);
-      $timeout = $timeout/60 . 'm';
+   elseif ($key === 'PPDBG') {
+      $ppdbg = $val;
    }
-   elseif (str_starts_with($x, 'ghd')) {
-      $restmode = (explode("=", $x)[1]);
+   elseif ($key === 'timeout') {
+      $timeout = ((int)$val / 60) . 'm';
    }
-   elseif (str_starts_with($x, 'PYPWN')) {
-      $upypwn = (explode("=", $x)[1]);
+   elseif ($key === 'ghd') {
+      $restmode = $val;
    }
-   elseif (str_starts_with($x, 'led')) {
-      $ledact = (explode("=", str_replace("\"", "", $x))[1]);
+   elseif ($key === 'PYPWN') {
+      $upypwn = $val;
    }
-   elseif (str_starts_with($x, 'DDNS')) {
-      $ddns = (explode("=", $x)[1]);
+   elseif ($key === 'led') {
+      $ledact = $val;
    }
-   elseif (str_starts_with($x, 'oipv')) {
-      $oipv = (explode("=", $x)[1]);
+   elseif ($key === 'DDNS') {
+      $ddns = $val;
    }
-   elseif (str_starts_with($x, 'path')) {
-    $path = (explode("=", $x)[1]);
+   elseif ($key === 'oipv') {
+      $oipv = $val;
    }
-   elseif (str_starts_with($x, 'btn')) {
-    $pppwnbtn = (explode("=", $x)[1]);
+   elseif ($key === 'path') {
+      $path = $val;
    }
-   elseif (str_starts_with($x, 'ps4ip')) {
-    $ps4ip = (explode("=", $x)[1]);
+   elseif ($key === 'btn') {
+      $pppwnbtn = $val;
    }
-   elseif (str_starts_with($x, 'startup')) {
-    $startup = (explode("=", $x)[1]);
+   elseif ($key === 'ps4ip') {
+      $ps4ip = $val;
+   }
+   elseif ($key === 'startup') {
+      $startup = $val;
    }
 }
+
 }else{
+   $iface = "eth0";
    $interface = "eth0";
    $firmware = "11.00";
    $shutdownpi = "true";
@@ -303,6 +223,7 @@ foreach ($data as $x) {
    $startup = "true";
 }
 
+if (empty($iface)){ $iface = "eth0";}
 if (empty($interface)){ $interface = "eth0";}
 if (empty($firmware)){ $firmware = "11.00";}
 if (empty($shutdownpi)){ $shutdownpi = "true";}
@@ -626,23 +547,9 @@ print("<button name=\"network\">Network Settings</button> &nbsp; <button name=\"
 
 print("<select name=\"interface\">");
 
-$cmd = 'ip link';
-exec($cmd . " 2>&1", $idata, $iret);
-
-$current_interface = "";
-$matching_interfaces = [];
-
-foreach ($idata as $line) {
-    $line = trim($line);
-
-    if (preg_match('/^\d+: ([^:]+):/', $line, $matches)) {
-        $current_interface = $matches[1];
-    }
-
-    if (strpos($line, 'master ps4') !== false) {
-        $matching_interfaces[] = $current_interface;
-    }
-}
+// Grabs all available physical and bridge network interface names
+$cmd = "ip -o link show | awk -F': ' '{print $2}'";
+exec($cmd . " 2>&1", $matching_interfaces, $iret);
 
 foreach ($matching_interfaces as $x) {
     $x = trim($x);
@@ -821,6 +728,7 @@ print("<br><input type=\"checkbox\" name=\"ddns\" value=\"".$ddns."\" ".$cval.">
 
 print("<input type=\"hidden\" name=\"path\" value=".$path.">");
 print("<input type=\"hidden\" name=\"ps4ip\" value=".$ps4ip.">");
+print("<input type=\"hidden\" name=\"iface\" value=".$iface.">");
 
 if ($pppoeconn == "false")
 {
@@ -838,48 +746,51 @@ print("</td></tr><td align=center><br><button name=\"save\">Save</button></td></
 </form>
 </td>
 </table>
-<script>
+");
+
+print("<script>
 var logger = document.getElementById(\"pwnlogger\");
 var span = document.getElementsByClassName(\"close\")[0];
-");
 
-
-if ($ppdbg == "true")
-{
-print("var btn = document.getElementById(\"pwnlog\");
-btn.onclick = function() {
-  logger.style.display = \"block\";
-  var lbody = document.getElementsByClassName(\"logger-body\")[0];
-  lbody.innerHTML  = '<textarea disabled id=\"text_box\" rows=\"40\"></textarea>';
-  startLog('pwn.log');
-}
-");
+// Handle opening the log viewer if verbose debugging is turned on
+if (document.getElementById(\"pwnlog\")) {
+    var btn = document.getElementById(\"pwnlog\");
+    btn.onclick = function() {
+        logger.style.display = \"block\";
+        var lbody = document.getElementsByClassName(\"logger-body\")[0];
+        lbody.innerHTML = '<textarea disabled id=\"text_box\" rows=\"40\"></textarea>';
+        startLog('pwn.log');
+    }
 }
 
-
-print("var btn1 = document.getElementById(\"help\");
-btn1.onclick = function() {
-  logger.style.display = \"block\";
-  var lbody = document.getElementsByClassName(\"logger-body\")[0];
-  lbody.innerHTML  = \"<br><div id=help style='text-align: left; font-size: 14px;'> <font color='#F28C28'>Interface</font> - this is the lan interface on the pi that is connected to the console.<br><br><font color='#F28C28'>Firmware version</font> - version of firmware running on the console.<br><br><font color='#F28C28'>Time to restart PPPwn if it hangs</font> - a timeout in minutes to restart pppwn if the exploit hangs mid process.<br><br><font color='#F28C28'>Led activity</font> - on selected pi models this will have the leds flash based on the exploit progress.<br><br><font color='#F28C28'>Use Python version</font> - enabling this will force the use of the original python pppwn released by <a href='https://github.com/TheOfficialFloW/PPPwn' target='_blank'>TheOfficialFloW</a> <br><br><font color='#F28C28'>Use GoldHen if available for selected firmware</font> - if this is not enabled or your firmware has no goldhen available vtx-hen will be used.<br><br><font color='#F28C28'>Use original source ipv6</font> - this will force pppwn to use the original ipv6 address that was used in pppwn as on some consoles it increases the speed of pwn.<br><br><font color='#F28C28'>Use usb ethernet adapter for console connection</font> - only enable this if you are using a usb to ethernet adapter to connect to the console.<br><br><font color='#F28C28'>Detect if goldhen is running</font> - this will make pi-pwn check if goldhen is loaded on the console and skip running pppwn if it is running.<br><br><font color='#F28C28'>Detect console shutdown and restart PPPwn</font> - with this enabled if the link is lost between the pi and the console pppwn will be restarted.<br><br><font color='#F28C28'>Enable verbose PPPwn</font> - enables debug output from pppwn so you can see the exploit progress.<br><br><font color='#F28C28'>Enable console internet access</font> - enabling this will make pi-pwn setup a connection to the console allowing internet access after pppwn succeeds.<br><br><font color='#F28C28'>Disable DNS blocker</font> - enabling this will turn off the dns blocker that blocks certain servers that are used for updates and telemetry. <br><br><font color='#F28C28'>Shutdown PI after PWN</font> - if enabled this will make the pi shutdown after pppwn succeeds.<br><br><font color='#F28C28'>Enable usb drive to console</font> - on selected pi models this will allow a usb drive in the pi to be passed through to the console.<br><br><font color='#F28C28'>Ports</font> - this is a list of ports that are forwarded from the pi to the console, single ports or port ranges can be used.<br><br><br><br><center><font color='#50C878'>Credits</font> - all credit goes to <a href='https://github.com/TheOfficialFloW' target='_blank'>TheOfficialFloW</a>, <a href='https://github.com/xfangfang' target='_blank'>xfangfang</a>, <a href='https://github.com/SiSTR0' target='_blank'>SiSTR0</a>, <a href='https://github.com/xvortex' target='_blank'>Vortex</a>, <a href='https://github.com/EchoStretch' target='_blank'>EchoStretch</a> and many other people who have made this project possible.</center>\";
+// Handle opening the help screen modal if clicked
+if (document.getElementById(\"help\")) {
+    var btn1 = document.getElementById(\"help\");
+    btn1.onclick = function() {
+        logger.style.display = \"block\";
+        var lbody = document.getElementsByClassName(\"logger-body\")[0];
+        lbody.innerHTML  = \"<br><div id=help style='text-align: left; font-size: 14px;'> <font color='#F28C28'>Interface</font> - this is the lan interface on the pi that is connected to the console.<br><br><font color='#F28C28'>Firmware version</font> - version of firmware running on the console.<br><br><font color='#F28C28'>Time to restart PPPwn if it hangs</font> - a timeout in minutes to restart pppwn if the exploit hangs mid process.<br><br><font color='#F28C28'>Led activity</font> - on selected pi models this will have the leds flash based on the exploit progress.<br><br><font color='#F28C28'>Use Python version</font> - enabling this will force the use of the original python pppwn released by <a href='https://github.com' target='_blank'>TheOfficialFloW</a> <br><br><font color='#F28C28'>Use GoldHen if available for selected firmware</font> - if this is not enabled or your firmware has no goldhen available vtx-hen will be used.<br><br><font color='#F28C28'>Use original source ipv6</font> - this will force pppwn to use the original ipv6 address that was used in pppwn as on some consoles it increases the speed of pwn.<br><br><font color='#F28C28'>Use usb ethernet adapter for console connection</font> - only enable this if you are using a usb to ethernet adapter to connect to the console.<br><br><font color='#F28C28'>Detect if goldhen is running</font> - this will make pi-pwn check if goldhen is loaded on the console and skip running pppwn if it is running.<br><br><font color='#F28C28'>Detect console shutdown and restart PPPwn</font> - with this enabled if the link is lost between the pi and the console pppwn will be restarted.<br><br><font color='#F28C28'>Enable verbose PPPwn</font> - enables debug output from pppwn so you can see the exploit progress.<br><br><font color='#F28C28'>Enable console internet access</font> - enabling this will make pi-pwn setup a connection to the console allowing internet access after pppwn succeeds.<br><br><font color='#F28C28'>Disable DNS blocker</font> - enabling this will turn off the dns blocker that blocks certain servers that are used for updates and telemetry. <br><br><font color='#F28C28'>Shutdown PI after PWN</font> - if enabled this will make the pi shutdown after pppwn succeeds.<br><br><font color='#F28C28'>Enable usb drive to console</font> - on selected pi models this will allow a usb drive in the pi to be passed through to the console.<br><br><font color='#F28C28'>Ports</font> - this is a list of ports that are forwarded from the pi to the console, single ports or port ranges can be used.<br><br><br><br><center><font color='#50C878'>Credits</font> - all credit goes to <a href='https://github.com' target='_blank'>TheOfficialFloW</a>, <a href='https://github.com' target='_blank'>xfangfang</a>, <a href='https://github.com' target='_blank'>SiSTR0</a>, <a href='https://github.com' target='_blank'>Vortex</a>, <a href='https://github.com' target='_blank'>EchoStretch</a> and many other people who have made this project possible.</center>\";
+    }
 }
 
+// Safely hide and clean up log timers/elements on close
 span.onclick = function() {
-  logger.style.display = \"none\";
-  stopLog();
-  var text1 = document.getElementById(\"text_box\");
-  text1.value = '';
+    logger.style.display = \"none\";
+    stopLog();
+    var text1 = document.getElementById(\"text_box\");
+    if(text1) { text1.value = ''; }
 }
 
+// Close the window if a user clicks outside the modal space
 window.onclick = function(event) {
-  if (event.target == logger) {
-    logger.style.display = \"none\";
-	stopLog();
-	var text1 = document.getElementById(\"text_box\");
-	text1.value = '';
-  }
+    if (event.target == logger) {
+        logger.style.display = \"none\";
+        stopLog();
+        var text1 = document.getElementById(\"text_box\");
+        if(text1) { text1.value = ''; }
+    }
 }
-");
+</script>");
 
 if (isset($_POST['update'])){
 	exec('sudo bash /boot/firmware/PPPwn/update.sh >> /dev/null &');

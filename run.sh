@@ -52,9 +52,12 @@ if [ "$ghd" = "true" ]; then
     fi
 
     # wait for linkup
+    echo "restarting pppoe-server"
     /etc/init.d/pppoe-server restart
     while true; do
+        echo "running first nmap command"
         STATUS=$(nmap -p 3232 $ps4ip | grep "3232/tcp" | cut -f2 -d' ')
+        echo "$STATUS"
         if [ "$STATUS" = "" ]; then            
 	        echo "awaiting link"
         else
@@ -99,7 +102,6 @@ sleep 1
 while [ "$finished" = false ]; do
     printf "\033[33m\nAttempting to execute PPPwn script...\033[0m\n"
 
-
     # Ensure no old instances are running
     pkill -f "${path}${script_name}" 2>/dev/null
 
@@ -111,10 +113,10 @@ while [ "$finished" = false ]; do
 
     # Run the program in the background and direct output to log file
     ( chmod +x "${path}/${script_name}" && \
-      "${path}/${script_name}" --interface "ps4" --fw "${fw//.}" \
-      --stage1 "${path}/stage1_${fw//.}.bin" --stage2 "${path}/stage2_${fw//.}.bin" \
-      -wap "${XFWAP}" -gd "${XFGD}" -bs "${XFBS}" ${nowait} -t 5 \
-      ${ipv6} --auto-retry ) > program_output.log 2>&1 &
+      "${path}/${script_name}" -i "$iface" --fw "${fw//.}" \
+      -s1 "${path}/stage1_${fw//.}.bin" -s2 "${path}/stage2_${fw//.}.bin" \
+      -wap "${XFWAP}" -gd "${XFGD}" -bs "${XFBS}" "${nowait}" -t 5 \
+      -a -rs ) > pwn.log 2>&1 &
 
     program_pid=$!
 
@@ -123,7 +125,7 @@ while [ "$finished" = false ]; do
     mkfifo "$fifo_file"
 
     # Start tail -F and redirect output to FIFO (background process)
-    tail -F program_output.log > "$fifo_file" &
+    tail -F pwn.log > "$fifo_file" &
     tail_pid=$!
 
     while read -r stdo < "$fifo_file"; do

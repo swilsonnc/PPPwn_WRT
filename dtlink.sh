@@ -1,19 +1,23 @@
 #!/bin/sh
 
-source "$(cd "$(dirname "$0")" && pwd)/settings.cfg"
+cd /overlay/work/PPPwn_WRT-main
+. ./settings.cfg
 
-if [ "$dtl" != "true"]; then
+if [ "$dtl" != "true" ]; then
     break;
 fi
 
-INTERFACE="$dtlan"
+INTERFACE="${dtlan}"
 
 check_link_status() {
     ifconfig "$INTERFACE" | grep -q "RUNNING"
 }
 
-/etc/init.d/pppwn stop
+# 1. Force kill the exploit engines cleanly
+killall -9 pppwn_mipsel >/dev/null 2>&1
+killall -9 pppwn >/dev/null 2>&1
 
+# 2. Reset the physical interface link to clear the PS4's stuck state
 if [ "$led" != "none" ] && [ "$led" != "" ]; then
     echo "default-on" > /sys/class/leds/${led}/trigger
 fi

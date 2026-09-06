@@ -37,7 +37,7 @@ if (isset($_POST['saveppp'])){
         }
     } 
 
-    $ps4ip = $_POST['ps4ip'];
+    $ps4ip = $_POST['localip'];
 
     function isValidIp($ip) {
         return preg_match('/^(\d{1,3}\.){3}\d{1,3}$/', $ip) && array_reduce(explode('.', $ip), function($carry, $part) {
@@ -59,11 +59,11 @@ if (isset($_POST['saveppp'])){
     foreach ($configLines as $line) {
         if (preg_match('/^\s*option\s+localip\s+/', $line)) {
             $updatedLines[] = "        option localip $ps4ip";
-        } elseif (preg_match('/^\s*option\s+firstremoteip\s+/', $line)) {
+        } elseif (preg_match('/^\s*option\s+localip\s+/', $line)) {
             $ipParts = explode('.', $ps4ip);
             $ipParts[3] = (int)$ipParts[3] + 1;
             $incrementedIp = implode('.', $ipParts);
-            $updatedLines[] = "        option firstremoteip $incrementedIp";
+            $updatedLines[] = "        option localip $incrementedIp";
         } else {
             $updatedLines[] = $line;
         }
@@ -170,17 +170,17 @@ foreach ($configLines as $line) {
     }
 }
 
-if ($ps4ip === null) {
-    die("localip not found in the configuration file.");
-}
+#if ($ps4ip === null) {
+#    die("localip not found in the configuration file.");
+#}
 
 if (empty($pppusr)){ $pppusr = "ppp";}
 if (empty($ppppw)){ $ppppw = "ppp";}
 if (empty($guestusr)){ $guestusr = "guest";}
 if (empty($guestw)){ $guestw = "ppp";}
-if (empty($ps4ip)){ $ps4ip = "192.168.3.1";}
-if (empty($ps4ipinc)){ $ps4ipinc = "192.168.3.2";}
-if (empty($guestip)){ $guestip = "192.168.3.3";}
+if (empty($ps4ip)){ $ps4ip = "192.168.8.1";}
+if (empty($ps4ipinc)){ $ps4ipinc = "192.168.8.11";}
+if (empty($guestip)){ $guestip = "192.168.8.2";}
 
 print("<html> 
 <head>
